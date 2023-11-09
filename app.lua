@@ -1,7 +1,7 @@
 local lapis = require("lapis")
+local json_params = require("lapis.application").json_params
 local yaml = require("lyaml")
 local stringio = require("pl.stringio")
-
 local app = lapis.Application()
 
 app:get("/.well-known/ai-plugin.json", function(res)
@@ -10,7 +10,7 @@ app:get("/.well-known/ai-plugin.json", function(res)
     }
 end)
 
-app:get("/openapi.yaml", function ()
+app:get("/openapi.yaml", function()
     return yaml.dump { require("openapi") }, {
         layout = false,
         content_type = "text/yaml",
@@ -18,30 +18,27 @@ app:get("/openapi.yaml", function ()
 end)
 
 
-app:get("/logo.png", function ()
-    --redirect to https://48pedia.org/images/thumb/8/8e/Lua-logo.svg/1200px-Lua-logo.svg.png?20200118144036
-    return {
-        redirect_to = "https://48pedia.org/images/thumb/8/8e/Lua-logo.svg/1200px-Lua-logo.svg.png?20200118144036"
-    }
+app:get("/logo.png", function()
+    return { redirect_to = "https://48pedia.org/images/thumb/8/8e/Lua-logo.svg/1200px-Lua-logo.svg.png?20200118144036" }
 end)
 
-app:post("/lua", function(req)
+app:post("/lua", json_params(function(req)
     local code = req.params.code
     local stdout, stderr = stringio.create(), stringio.create()
 
     local func, err = load(code, "lua", "t", setmetatable({
         io = setmetatable({ stdout = stdout, stderr = stderr, }, { __index = io, }),
         print = function(...)
-            local args = { ... }
-            for i = 1, #args do
+            local args = {...}
+            for i in ipairs(args) do
                 args[i] = tostring(args[i])
             end
             stdout:write(table.concat(args, "\t").."\n")
         end,
 
         error = function(...)
-            local args = { ... }
-            for i = 1, #args do
+            local args = {...}
+            for i in ipairs(args) do
                 args[i] = tostring(args[i])
             end
             stderr:write(table.concat(args, "\t").."\n")
@@ -53,7 +50,7 @@ app:post("/lua", function(req)
     if not ok then
         return {
             json = {
-                error = err,
+                error = tostring(err),
                 stdout = stdout:value(),
                 stderr = stderr:value(),
             }
@@ -62,11 +59,11 @@ app:post("/lua", function(req)
 
     return {
         json = {
-            return_value = tostring(res),
+            return_value = tostring(err),
             stdout = stdout:value(),
             stderr = stderr:value(),
         }
     }
-end)
+end))
 
 return app
